@@ -42,6 +42,9 @@ func (a *api) Routes() *chi.Mux {
 
 	r.Post("/recipe", a.insertRecipe)
 	r.Put("/recipe/{id}", a.updateRecipe)
+	r.Get("/recipe/{id}", a.getRecipeById)
+	r.Delete("/recipe/{id}", a.deleteRecipeById)
+	r.Get("/recipe-list", a.getListRecipe)
 
 	return r
 }

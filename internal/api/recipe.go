@@ -1,7 +1,9 @@
 package api
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"github.com/go-chi/chi/v5"
 	"github.com/rhnauf/recipe-api/internal/entity"
 	"github.com/rhnauf/recipe-api/internal/helper"
@@ -70,4 +72,95 @@ func (a *api) updateRecipe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	helper.HandleResponse(w, http.StatusOK, "success update recipe", nil)
+}
+
+func (a *api) getRecipeById(w http.ResponseWriter, r *http.Request) {
+	pathParam := chi.URLParam(r, "id")
+	id, err := strconv.ParseInt(pathParam, 0, 64)
+	if err != nil {
+		helper.HandleResponse(w, http.StatusBadRequest, "id must be numeric", nil)
+		return
+	}
+
+	recipe, err := a.recipeRepository.GetRecipeById(id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			helper.HandleResponse(w, http.StatusBadRequest, "recipe not found", nil)
+			return
+		}
+		helper.HandleResponse(w, http.StatusBadRequest, "error getting recipe", nil)
+		return
+	}
+
+	recipeDto := entity.RecipeDTO{
+		Id:          recipe.Id,
+		Title:       recipe.Title,
+		Description: recipe.Description,
+		Instruction: recipe.Instruction,
+		Publish:     recipe.Publish,
+		CreatedAt:   recipe.CreatedAt.Format("02-01-2006"),
+	}
+
+	helper.HandleResponse(w, http.StatusOK, "success get detail recipe", recipeDto)
+}
+
+func (a *api) deleteRecipeById(w http.ResponseWriter, r *http.Request) {
+	pathParam := chi.URLParam(r, "id")
+	id, err := strconv.ParseInt(pathParam, 0, 64)
+	if err != nil {
+		helper.HandleResponse(w, http.StatusBadRequest, "id must be numeric", nil)
+		return
+	}
+
+	err = a.recipeRepository.DeleteRecipeById(id)
+	if err != nil {
+		helper.HandleResponse(w, http.StatusBadRequest, "error delete recipe", nil)
+		return
+	}
+
+	helper.HandleResponse(w, http.StatusOK, "success delete recipe", nil)
+}
+
+func (a *api) getListRecipe(w http.ResponseWriter, r *http.Request) {
+	pageParam := r.URL.Query().Get("page")
+	limitParam := r.URL.Query().Get("limit")
+
+	var page int64 = 1
+	var limit int64 = 10
+
+	if pageParam != "" {
+		p, err := strconv.ParseInt(pageParam, 0, 64)
+		if err != nil {
+			helper.HandleResponse(w, http.StatusBadRequest, "page must be numeric", nil)
+			return
+		}
+		page = p
+	}
+
+	if limitParam != "" {
+		l, err := strconv.ParseInt(limitParam, 0, 64)
+		if err != nil {
+			helper.HandleResponse(w, http.StatusBadRequest, "limit must be numeric", nil)
+			return
+		}
+		limit = l
+	}
+
+	offset := limit * (page - 1)
+
+	recipes, err := a.recipeRepository.GetListRecipe(limit, offset)
+	if err != nil {
+		helper.HandleResponse(w, http.StatusBadRequest, "error get list recipe", nil)
+		return
+	}
+
+	res := make([]*entity.RecipeDTO, len(recipes))
+	for idx, recipe := range recipes {
+		res[idx] = &entity.RecipeDTO{
+			Id:    recipe.Id,
+			Title: recipe.Title,
+		}
+	}
+
+	helper.HandleResponse(w, http.StatusOK, "success get list recipe", res)
 }

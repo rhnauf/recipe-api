@@ -5,7 +5,9 @@ import (
 	"errors"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/rhnauf/recipe-api/internal/entity"
+	"reflect"
 	"testing"
+	"time"
 )
 
 func assertErr(t *testing.T, got, want error) {
@@ -15,6 +17,21 @@ func assertErr(t *testing.T, got, want error) {
 	}
 }
 
+func assertRecipeEqual(t *testing.T, got, want *entity.Recipe) {
+	t.Helper()
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func assertRecipesEqual(t *testing.T, got, want []*entity.Recipe) {
+	t.Helper()
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+// should've used suite
 func TestInsertRecipe(t *testing.T) {
 	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
 	if err != nil {
@@ -93,5 +110,164 @@ func TestUpdateRecipe(t *testing.T) {
 
 		err = repo.UpdateRecipe(recipe)
 		assertErr(t, err, sql.ErrConnDone)
+	})
+}
+
+func TestGetRecipeById(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer db.Close()
+
+	var idSuccess int64 = 1
+	var idNotFound int64 = 2
+
+	repo := NewRecipeRepository(db)
+
+	qry := "SELECT * FROM recipes WHERE id = $1"
+
+	t.Run("should return success on get by id query", func(t *testing.T) {
+		now := time.Now()
+
+		recipeRow := sqlmock.
+			NewRows([]string{"id", "created_at", "title", "description", "instruction", "publish"}).
+			AddRow(1, now, "nasi goreng", "nasi goreng desc", "nasi goreng instruction", true)
+
+		mock.
+			ExpectQuery(qry).
+			WithArgs(idSuccess).
+			WillReturnRows(recipeRow)
+
+		got, err := repo.GetRecipeById(idSuccess)
+
+		var p = true
+		want := &entity.Recipe{
+			Id:          1,
+			Title:       "nasi goreng",
+			Description: "nasi goreng desc",
+			Instruction: "nasi goreng instruction",
+			Publish:     &p,
+			CreatedAt:   now,
+		}
+
+		assertErr(t, err, nil)
+		assertRecipeEqual(t, got, want)
+	})
+
+	t.Run("should return error not found on get by id query", func(t *testing.T) {
+		mock.
+			ExpectQuery(qry).
+			WithArgs(idNotFound).
+			WillReturnError(sql.ErrNoRows)
+
+		got, err := repo.GetRecipeById(idNotFound)
+
+		assertErr(t, err, sql.ErrNoRows)
+		assertRecipeEqual(t, got, nil)
+	})
+}
+
+func TestDeleteRecipeById(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer db.Close()
+
+	var id int64 = 1
+
+	repo := NewRecipeRepository(db)
+
+	qry := "DELETE FROM recipes WHERE id = $1"
+
+	t.Run("should return success on delete by id query", func(t *testing.T) {
+		mock.
+			ExpectExec(qry).
+			WithArgs(id).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+
+		err = repo.DeleteRecipeById(id)
+
+		assertErr(t, err, nil)
+	})
+
+	t.Run("should return error on delete by id query", func(t *testing.T) {
+		mock.
+			ExpectExec(qry).
+			WithArgs(id).
+			WillReturnError(sql.ErrConnDone)
+
+		err = repo.DeleteRecipeById(id)
+
+		assertErr(t, err, sql.ErrConnDone)
+	})
+}
+
+func TestGetListRecipe(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer db.Close()
+
+	var offset int64 = 1
+	var limit int64 = 10
+
+	repo := NewRecipeRepository(db)
+
+	qry := "SELECT id, title FROM recipes LIMIT $1 OFFSET $2"
+
+	t.Run("should return success on get list query", func(t *testing.T) {
+		recipeRows := sqlmock.
+			NewRows([]string{"id", "title"}).
+			AddRow(1, "nasi goreng")
+
+		mock.
+			ExpectQuery(qry).
+			WithArgs(limit, offset).
+			WillReturnRows(recipeRows)
+
+		got, err := repo.GetListRecipe(limit, offset)
+
+		want := []*entity.Recipe{
+			{
+				Id:    1,
+				Title: "nasi goreng",
+			},
+		}
+
+		assertErr(t, err, nil)
+		assertRecipesEqual(t, got, want)
+	})
+
+	t.Run("should return empty slice error on scanning rows", func(t *testing.T) {
+		recipeRows := sqlmock.
+			NewRows([]string{"id", "title"}).
+			AddRow("invalid", "nasi goreng")
+
+		mock.
+			ExpectQuery(qry).
+			WithArgs(limit, offset).
+			WillReturnRows(recipeRows)
+
+		got, err := repo.GetListRecipe(limit, offset)
+
+		var want []*entity.Recipe
+
+		assertErr(t, err, nil)
+		assertRecipesEqual(t, got, want)
+	})
+
+	t.Run("should return error getting list", func(t *testing.T) {
+		mock.
+			ExpectQuery(qry).
+			WithArgs(limit, offset).
+			WillReturnError(sql.ErrConnDone)
+
+		got, err := repo.GetListRecipe(limit, offset)
+
+		assertErr(t, err, sql.ErrConnDone)
+		assertRecipesEqual(t, got, nil)
 	})
 }

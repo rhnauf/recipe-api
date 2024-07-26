@@ -1,6 +1,9 @@
 package entity
 
-import "errors"
+import (
+	"errors"
+	"time"
+)
 
 /*
 to keep it simple, the instruction will just be string to comply for the basic requirements
@@ -13,6 +16,7 @@ type Recipe struct {
 	Description string
 	Instruction string
 	Publish     *bool
+	CreatedAt   time.Time
 }
 
 type RecipeDTO struct {
@@ -20,7 +24,8 @@ type RecipeDTO struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	Instruction string `json:"instruction"`
-	Publish     *bool  `json:"publish"`
+	Publish     *bool  `json:"publish,omitempty"`
+	CreatedAt   string `json:"created_at,omitempty"`
 }
 
 func (r RecipeDTO) InsertValidate() error {
