@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"github.com/joho/godotenv"
+	"github.com/rhnauf/recipe-api/external/db"
 	"github.com/rhnauf/recipe-api/internal/api"
 	"log"
 	"os"
@@ -22,15 +23,15 @@ func (a *App) initConfiguration() {
 }
 
 func (a *App) runWebServer() {
-	//_, dbDispose := db.NewDatabase()
-	//defer dbDispose()
+	pool, dbDispose := db.NewDatabase()
+	defer dbDispose()
 
-	handler := api.NewAPI()
+	handler := api.NewAPI(pool)
 	srv := handler.Server(a.port)
 
 	go func() { _ = srv.ListenAndServe() }()
 
-	log.Println("STARTED API AT PORT", a.port)
+	log.Println("STARTED API ON PORT =>", a.port)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

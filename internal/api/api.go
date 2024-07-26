@@ -1,17 +1,25 @@
 package api
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/rhnauf/recipe-api/internal/repository"
 	"net/http"
 )
 
 type api struct {
+	recipeRepository repository.RecipeRepository
 }
 
-func NewAPI() *api {
-	return &api{}
+func NewAPI(pool *sql.DB) *api {
+
+	recipeRepository := repository.NewRecipeRepository(pool)
+
+	return &api{
+		recipeRepository: recipeRepository,
+	}
 }
 
 func (a *api) Server(port string) *http.Server {
@@ -21,6 +29,10 @@ func (a *api) Server(port string) *http.Server {
 	}
 }
 
+/*
+	for simplicity, the architecture only consist of handler -> repository layer (skipping business logic layer)
+*/
+
 func (a *api) Routes() *chi.Mux {
 	r := chi.NewRouter()
 
@@ -28,9 +40,8 @@ func (a *api) Routes() *chi.Mux {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Heartbeat("/ping"))
 
-	r.Get("/hello-world", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello World!"))
-	})
+	r.Post("/recipe", a.insertRecipe)
+	r.Put("/recipe/{id}", a.updateRecipe)
 
 	return r
 }

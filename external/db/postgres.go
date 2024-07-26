@@ -30,7 +30,7 @@ func NewDatabase() (*sql.DB, func() error) {
 		log.Fatal("ERROR PING TO DB =>", err)
 	}
 
-	log.Println("SUCCESSFULLY CONNECTED TO DB ON PORT => ", port)
+	log.Println("SUCCESSFULLY CONNECTED TO DB ON PORT =>", port)
 
 	return dbConn, dbConn.Close
 }

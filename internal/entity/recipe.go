@@ -1,5 +1,7 @@
 package entity
 
+import "errors"
+
 /*
 to keep it simple, the instruction will just be string to comply for the basic requirements
 for the real world application might separate each of ingredient, instruction, testimonial
@@ -11,4 +13,33 @@ type Recipe struct {
 	Description string
 	Instruction string
 	Publish     *bool
+}
+
+type RecipeDTO struct {
+	Id          int64  `json:"id"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Instruction string `json:"instruction"`
+	Publish     *bool  `json:"publish"`
+}
+
+func (r RecipeDTO) InsertValidate() error {
+	if r.Title == "" {
+		return errors.New("title must not be empty")
+	}
+	return nil
+}
+
+func (r RecipeDTO) UpdateValidate() error {
+	if r.Id == 0 {
+		return errors.New("id must not be empty")
+	}
+	if r.Title == "" {
+		return errors.New("title must not be empty")
+	}
+	return nil
+}
+
+func (r *RecipeDTO) SetId(id int64) {
+	r.Id = id
 }
