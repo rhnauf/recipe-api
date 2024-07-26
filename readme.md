@@ -2,6 +2,7 @@
 
 ---
 <h3>Prerequisites:
+
 - [Go](https://go.dev/dl/) programming language
 - [PostgreSQL](https://www.postgresql.org/)
 - makefile (optional)
