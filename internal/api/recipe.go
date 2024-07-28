@@ -4,11 +4,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"github.com/go-chi/chi/v5"
-	"github.com/rhnauf/recipe-api/internal/entity"
-	"github.com/rhnauf/recipe-api/internal/helper"
 	"net/http"
 	"strconv"
+
+	"github.com/go-chi/chi/v5"
+
+	"github.com/rhnauf/recipe-api/internal/entity"
+	"github.com/rhnauf/recipe-api/internal/helper"
 )
 
 func (a *api) insertRecipe(w http.ResponseWriter, r *http.Request) {
@@ -121,12 +123,21 @@ func (a *api) deleteRecipeById(w http.ResponseWriter, r *http.Request) {
 	helper.HandleResponse(w, http.StatusOK, "success delete recipe", nil)
 }
 
+const (
+	DefaultPage = 1
+	MinPage     = 1
+
+	DefaultLimit = 10
+	MinLimit     = 1
+	MaxLimit     = 100
+)
+
 func (a *api) getListRecipe(w http.ResponseWriter, r *http.Request) {
 	pageParam := r.URL.Query().Get("page")
 	limitParam := r.URL.Query().Get("limit")
 
-	var page int64 = 1
-	var limit int64 = 10
+	var page int64 = DefaultPage
+	var limit int64 = DefaultLimit
 
 	if pageParam != "" {
 		p, err := strconv.ParseInt(pageParam, 0, 64)
@@ -134,7 +145,9 @@ func (a *api) getListRecipe(w http.ResponseWriter, r *http.Request) {
 			helper.HandleResponse(w, http.StatusBadRequest, "page must be numeric", nil)
 			return
 		}
-		page = p
+		if p >= MinPage {
+			page = p
+		}
 	}
 
 	if limitParam != "" {
@@ -143,7 +156,9 @@ func (a *api) getListRecipe(w http.ResponseWriter, r *http.Request) {
 			helper.HandleResponse(w, http.StatusBadRequest, "limit must be numeric", nil)
 			return
 		}
-		limit = l
+		if l >= MinLimit && l <= MaxLimit {
+			limit = l
+		}
 	}
 
 	offset := limit * (page - 1)
